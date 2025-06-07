@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Posture Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 AI Posture Assistant</h1>
+        
+        <div class="controls">
+            <button id="start">
+                <span class="icon">📷</span> Start Camera
+            </button>
+            <button id="stop">
+                <span class="icon">⏹️</span> Stop Camera
+            </button>
+        </div>
+
+        <div id="video-container" style="display: none;">
+            <img id="video-feed" src="" alt="Camera Feed">
+        </div>
+
+        <div id="status-container">
+            <div id="status-text">Camera is off</div>
+        </div>
+    </div>
+
+    <script>
+        const startBtn = document.getElementById("start");
+        const stopBtn = document.getElementById("stop");
+        const videoFeed = document.getElementById("video-feed");
+        const videoContainer = document.getElementById("video-container");
+        const statusText = document.getElementById("status-text");
+        let polling = null;
+
+        function updateStatus(isGood) {
+            statusText.className = isGood ? 'status-good' : 'status-bad pulse';
+            statusText.innerHTML = isGood ? 
+                '✅ Great posture! Keep it up!' : 
+                '⚠️ Please correct your posture!';
+        }
+
+        async function pollPostureStatus() {
+            try {
+                const response = await fetch("/posture_status");
+                const data = await response.json();
+                
+                updateStatus(!data.bad_posture);
+                
+                if (data.bad_posture && Notification.permission === "granted") {
+                    new Notification("Posture Check", {
+                        body: "Please adjust your sitting position",
+                        icon: "/static/icon.png"
+                    });
+                }
+            } catch (error) {
+                console.error("Error checking posture:", error);
+            }
+        }
+
+        startBtn.onclick = () => {
+            videoContainer.style.display = "block";
+            videoFeed.src = "/video_feed";
+            polling = setInterval(pollPostureStatus, 2000);
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+
+            if (Notification.permission !== "granted") {
+                Notification.requestPermission();
+            }
+        };
+
+        stopBtn.onclick = () => {
+            videoContainer.style.display = "none";
+            videoFeed.src = "";
+            clearInterval(polling);
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            statusText.className = '';
+            statusText.innerHTML = "Camera is off";
+        };
+
+        // Initial button state
+        stopBtn.disabled = true;
+    </script>
+</body>
+</html>
